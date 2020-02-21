@@ -6,6 +6,7 @@ Created on Wed Sep  4 14:23:38 2019
 """
 
 # Load libraries
+import glob
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import sparse
@@ -15,7 +16,12 @@ import matplotlib.cm as cm
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
-import glob
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import confusion_matrix
+from sklearn import tree
+import graphviz
 
 
 ##------------------------------ 
@@ -60,8 +66,8 @@ filelist.sort()
 #First we select de range we want to use. We want to use several ranges:
 start=ramvectpos(700)
 end = ramvectpos(1800)
-
 data_range =end - start
+
 #Now we create a matrix with the data
 data = np.zeros((len(filelist),data_range))
 dataprime = np.zeros((len(filelist),data_range-1))
@@ -114,11 +120,11 @@ for patient in filelist:
 #%%
 ##------class definition---------------
 #discrimination state of the patient 
-#C=label[:,3]
+C=label[:,3]
 #discrimination between days
 #C=label[:,0]
 #discrimination between patients
-C=label[:,2]
+#C=label[:,2]
 
 u, clases= np.unique(C, return_inverse=True)
 n_clases=len(u)
@@ -278,7 +284,7 @@ n_samples,n_features=X.shape
 ncomponents = 10
 pca = PCA(n_components=ncomponents)
 X = pca.fit_transform(data)
-
+print(pca.explained_variance_ratio_)
 
 #%%
 #Plotting the PCA
@@ -332,7 +338,9 @@ n_samples,n_features=X.shape
 ncomponents = 2
 lda = LinearDiscriminantAnalysis(n_components=ncomponents)
 y = C
-X_r2 = lda.fit(X, y).transform(X)
+X_lda = lda.fit_transform(X,y)
+print(lda.explained_variance_ratio_)
+lda.explained_variance_ratio_
 
 #%%
 #Plotting the LDA
@@ -343,12 +351,37 @@ fig=plt.figure(figsize=(12,10))
 #We plot PC1 vs PC2
 ax1 = fig.add_subplot(221)
 for color, i, target_name in zip(colores, np.arange(0,n_clases,1), u):
-    xs=X_r2[clases == i, 0]
-    ys=X_r2[clases == i, 1]
+    xs=X_lda[clases == i, 0]
+    ys=X_lda[clases == i, 1]
 
     plt.scatter(xs,ys,color=color,s=8,label=target_name)
 plt.legend(loc='best', shadow=False, scatterpoints=1)
 plt.title('LDA2 vs LDA1')
 ax1.set_xlabel('LDA1')
 ax1.set_ylabel('LDA2')
-fig.savefig('LDApatients.png')
+#fig.savefig('LDApatients.png')
+#%%
+#Classification LDA
+# =============================================================================
+classification = DecisionTreeClassifier()
+cross_val_score(classification,X_lda,y,cv=10)
+#%%
+#Prediction LDA
+# =============================================================================
+# Next, let’s see whether we can create a model to classify the using the LDA 
+# components as features. First, we split the data into training and testing sets.
+# =============================================================================
+X_train, X_test, y_train, y_test = train_test_split(X_lda, y, random_state=1)
+# =============================================================================
+# Then, we build and train a Decision Tree. After predicting the category of 
+# each sample in the test set, we create a confusion matrix to evaluate the
+# model’s performance.
+# =============================================================================
+dt = DecisionTreeClassifier()
+dt.fit(X_train, y_train)
+y_pred = dt.predict(X_test)
+cross_val_score(dt, X_lda, y, cv=10)
+
+
+ 
+#tree.plot_tree(dt.fit(X_train, y_train))
