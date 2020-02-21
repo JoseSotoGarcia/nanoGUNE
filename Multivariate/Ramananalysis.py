@@ -18,10 +18,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.model_selection import cross_val_score
 from sklearn.metrics import confusion_matrix
-from sklearn import tree
-import graphviz
 
 
 ##------------------------------ 
@@ -279,7 +276,6 @@ plt.show()
 #%%
 #------------------------------------------------------------------------------
 #------------------------------PCA---------------------------
-n_samples,n_features=X.shape
 #ncomponents = min(n_samples, n_features)
 ncomponents = 10
 pca = PCA(n_components=ncomponents)
@@ -333,14 +329,32 @@ plt.show()
 #%%
 #------------------------------------------------------------------------------
 #------------------------------LDA---------------------------
-n_samples,n_features=X.shape
-#ncomponents = min(n_samples, n_features)
+
 ncomponents = 2
 lda = LinearDiscriminantAnalysis(n_components=ncomponents)
 y = C
-X_lda = lda.fit_transform(X,y)
-print(lda.explained_variance_ratio_)
-lda.explained_variance_ratio_
+# split the data in learning and test
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=1)
+
+# prepare the model with the X_train
+X_train = lda.fit_transform(X_train,y_train)
+
+#project the data test using the fit of the train 
+X_test = lda.transform(X_test)
+
+#we build and train a Decision Tree. After predicting the category of 
+#each sample in the test set, we create a confusion matrix to evaluate the
+#model’s performance.
+dt = DecisionTreeClassifier()
+dt.fit(X_train, y_train)
+y_pred = dt.predict(X_test)
+
+z_labels = lda.predict(X_test) #gives you the predicted label for each sample
+z_prob = lda.predict_proba(X_test) #the probability of each sample to belong to each class
+
+print(confusion_matrix(y_test, y_pred))
+
+
 
 #%%
 #Plotting the LDA
@@ -361,17 +375,12 @@ ax1.set_xlabel('LDA1')
 ax1.set_ylabel('LDA2')
 #fig.savefig('LDApatients.png')
 #%%
-#Classification LDA
-# =============================================================================
-classification = DecisionTreeClassifier()
-cross_val_score(classification,X_lda,y,cv=10)
-#%%
 #Prediction LDA
 # =============================================================================
 # Next, let’s see whether we can create a model to classify the using the LDA 
 # components as features. First, we split the data into training and testing sets.
 # =============================================================================
-X_train, X_test, y_train, y_test = train_test_split(X_lda, y, random_state=1)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=1)
 # =============================================================================
 # Then, we build and train a Decision Tree. After predicting the category of 
 # each sample in the test set, we create a confusion matrix to evaluate the
@@ -380,7 +389,8 @@ X_train, X_test, y_train, y_test = train_test_split(X_lda, y, random_state=1)
 dt = DecisionTreeClassifier()
 dt.fit(X_train, y_train)
 y_pred = dt.predict(X_test)
-cross_val_score(dt, X_lda, y, cv=10)
+print(confusion_matrix(y_test, y_pred))
+
 
 
  
